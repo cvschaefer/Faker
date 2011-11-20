@@ -11,7 +11,7 @@ class Company extends \Faker\Provider\Company
 	protected static $companySuffix = array('GmbH', 'AG', 'UG', 'KG', 'OHG');
 
 	/**
-	 * @example 'Acme Ltd'
+	 * @example 'Schneider GmbH'
 	 */
 	public function company()
 	{
@@ -20,7 +20,7 @@ class Company extends \Faker\Provider\Company
 	}
 
 	/**
-	 * @example 'Ltd'
+	 * @example 'GmbH'
 	 */
 	public static function companySuffix()
 	{
