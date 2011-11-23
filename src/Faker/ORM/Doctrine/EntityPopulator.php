@@ -13,10 +13,16 @@ class EntityPopulator
 	 * @var ClassMetadata
 	 */
 	protected $class;
+
 	/**
 	 * @var array
 	 */
 	protected $columnFormatters = array();
+
+	/**
+	 * @var array
+	 */
+	protected $associationBlacklists = array();
 
 	/**
 	 * Class constructor.
@@ -57,7 +63,7 @@ class EntityPopulator
 		$class = $this->class;
 		$nameGuesser = new \Faker\Guesser\Name($generator);
 		$columnTypeGuesser = new ColumnTypeGuesser($generator);
-		foreach ($this->class->getFieldNames() AS $fieldName) {
+		foreach ($this->class->getFieldNames() as $fieldName) {
 			if ($this->class->isIdentifier($fieldName) || !$this->class->hasField($fieldName)) {
 				continue;
 			}
@@ -72,13 +78,34 @@ class EntityPopulator
 			}
 		}
 
-		foreach ($this->class->getAssociationNames() AS $assocName) {
-			if (!$this->class->isIdentifier($assocName) || !$this->class->isCollectionValuedAssociation($assocName)) {
-				continue;
+		foreach ($this->class->getAssociationNames() as $assocName) {
+			if ($this->class->isSingleValuedAssociation($assocName)) {
+				$relatedClass = $this->class->getAssociationTargetClass($assocName);
+
+				if (!isset($this->associationBlacklists[$relatedClass])) {
+					$this->associationBlacklists[$relatedClass] = array();
+				}
+				$blacklist = &$this->associationBlacklists[$relatedClass];
+
+				$formatters[$assocName] = function($inserted) use($relatedClass, &$blacklist) {
+							$keys = array_values(array_diff(array_keys($inserted[$relatedClass]), $blacklist));
+							if (!isset($inserted[$relatedClass]) || !count($keys)) {
+								return null;
+							}
+
+							$key = $keys[mt_rand(0, count($keys) - 1)];
+							$blacklist[] = $key;
+
+							return $inserted[$relatedClass][$key];
+						};
+			} else if ($this->class->isIdentifier($assocName) && $this->class->isCollectionValuedAssociation($assocName)) {
+				$relatedClass = $this->class->getAssociationTargetClass($assocName);
+				$formatters[$assocName] = function($inserted) use($relatedClass) {
+							return isset($inserted[$relatedClass]) ? $inserted[$relatedClass][mt_rand(0, count($inserted[$relatedClass]) - 1)] : null;
+						};
 			}
-			$relatedClass = $this->class->getAssociationTargetClass($fieldName);
-			$formatters[$assocName] = function($inserted) use($relatedClass) { return isset($inserted[$relatedClass]) ? $inserted[$relatedClass][mt_rand(0, count($inserted[$relatedClass]) - 1)] : null; };
 		}
+
 
 		return $formatters;
 	}
